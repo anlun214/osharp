@@ -11,13 +11,13 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
 
+using OSharp.Authorization;
 using OSharp.Collections;
 using OSharp.Exceptions;
 using OSharp.Extensions;
 using OSharp.Filter;
 using OSharp.Mapping;
 using OSharp.Reflection;
-using OSharp.Secutiry;
 
 
 namespace OSharp.Entity
@@ -133,6 +133,8 @@ namespace OSharp.Entity
         /// 将数据源映射为指定<typeparamref name="TOutputDto"/>的集合，
         /// 并验证数据的<see cref="DataAuthOperation.Update"/>,<see cref="DataAuthOperation.Delete"/>数据权限状态
         /// </summary>
+        /// <param name="source">数据源</param>
+        /// <param name="getKey">是否应用于获取缓存键时</param>
         public static IQueryable<TOutputDto> ToOutput<TEntity, TOutputDto>(this IQueryable<TEntity> source, bool getKey = false)
         {
             if (!typeof(TOutputDto).IsBaseOn<IDataAuthEnabled>() || getKey)
@@ -250,7 +252,7 @@ namespace OSharp.Entity
         /// 从指定<see cref="IEnumerable{T}"/>集合中查询未过期的子数据集，用于筛选实现了<see cref="IExpirable"/>接口的数据集
         /// </summary>
         public static IEnumerable<TEntity> Unexpired<TEntity>(this IEnumerable<TEntity> source)
-            where TEntity : IExpirable
+            where TEntity : class, IExpirable
         {
             DateTime now = DateTime.Now;
             bool Func(TEntity m) => (m.BeginTime == null || m.BeginTime.Value <= now) && (m.EndTime == null || m.EndTime.Value >= now);
@@ -272,49 +274,13 @@ namespace OSharp.Entity
         /// 从指定<see cref="IEnumerable{T}"/>集合中查询已过期的子数据集，用于筛选实现了<see cref="IExpirable"/>接口的数据集
         /// </summary>
         public static IEnumerable<TEntity> Expired<TEntity>(this IEnumerable<TEntity> source)
-            where TEntity : IExpirable
+            where TEntity : class, IExpirable
         {
             DateTime now = DateTime.Now;
             bool Func(TEntity m) => m.EndTime != null && m.EndTime.Value < now;
             return source.Where(Func);
         }
-        /*
-        /// <summary>
-        /// 从指定<see cref="IQueryable{T}"/>数据集中查询未逻辑删除的子数据集，用于筛选实现了<see cref="IRecyclable"/>接口的数据集
-        /// </summary>
-        public static IQueryable<TEntity> Unrecycled<TEntity>(this IQueryable<TEntity> source)
-            where TEntity : class, IRecyclable
-        {
-            return source.Where(m => !m.IsDeleted);
-        }
 
-        /// <summary>
-        /// 从指定<see cref="IEnumerable{T}"/>数据集中查询未逻辑删除的子数据集，用于筛选实现了<see cref="IRecyclable"/>接口的数据集
-        /// </summary>
-        public static IEnumerable<TEntity> Unrecycled<TEntity>(this IEnumerable<TEntity> source)
-            where TEntity : IRecyclable
-        {
-            return source.Where(m => !m.IsDeleted);
-        }
-
-        /// <summary>
-        /// 从指定<see cref="IQueryable{T}"/>数据集中查询已逻辑删除的子数据集，用于筛选实现了<see cref="IRecyclable"/>接口的数据集
-        /// </summary>
-        public static IQueryable<TEntity> Recycled<TEntity>(this IQueryable<TEntity> source)
-            where TEntity : class, IRecyclable
-        {
-            return source.Where(m => m.IsDeleted);
-        }
-
-        /// <summary>
-        /// 从指定<see cref="IEnumerable{T}"/>数据集中查询已逻辑删除的子数据集，用于筛选实现了<see cref="IRecyclable"/>接口的数据集
-        /// </summary>
-        public static IEnumerable<TEntity> Recycled<TEntity>(this IEnumerable<TEntity> source)
-            where TEntity : IRecyclable
-        {
-            return source.Where(m => m.IsDeleted);
-        }
-        */
         /// <summary>
         /// 从指定<see cref="IQueryable{T}"/>数据集中查询未锁定的子数据集，用于筛选实现了<see cref="ILockable"/>接口的数据集
         /// </summary>
@@ -328,7 +294,7 @@ namespace OSharp.Entity
         /// 从指定<see cref="IEnumerable{T}"/>数据集中查询未锁定的子数据集，用于筛选实现了<see cref="ILockable"/>接口的数据集
         /// </summary>
         public static IEnumerable<TEntity> Unlocked<TEntity>(this IEnumerable<TEntity> source)
-            where TEntity : ILockable
+            where TEntity : class, ILockable
         {
             return source.Where(m => !m.IsLocked);
         }
@@ -346,7 +312,7 @@ namespace OSharp.Entity
         /// 从指定<see cref="IEnumerable{T}"/>数据集中查询已锁定的子数据集，用于筛选实现了<see cref="ILockable"/>接口的数据集
         /// </summary>
         public static IEnumerable<TEntity> Locked<TEntity>(this IEnumerable<TEntity> source)
-            where TEntity : ILockable
+            where TEntity : class, ILockable
         {
             return source.Where(m => m.IsLocked);
         }

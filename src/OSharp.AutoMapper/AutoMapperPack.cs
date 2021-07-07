@@ -16,6 +16,7 @@ using AutoMapper.Configuration;
 
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Logging;
 
 using OSharp.Core.Packs;
 using OSharp.Mapping;
@@ -44,6 +45,7 @@ namespace OSharp.AutoMapper
         public override IServiceCollection AddServices(IServiceCollection services)
         {
             services.TryAddSingleton<MapperConfigurationExpression>(new MapperConfigurationExpression());
+            services.AddSingleton<IMapTuple, MapFromAndMapToProfile>();
 
             return services;
         }
@@ -54,28 +56,23 @@ namespace OSharp.AutoMapper
         /// <param name="provider">服务提供者</param>
         public override void UsePack(IServiceProvider provider)
         {
+            ILogger logger = provider.GetLogger<AutoMapperPack>();
             MapperConfigurationExpression cfg = provider.GetService<MapperConfigurationExpression>();
-
-            //各个模块DTO的 IAutoMapperConfiguration 映射实现类
-            IAutoMapperConfiguration[] configs = provider.GetServices<IAutoMapperConfiguration>().ToArray();
-            foreach (IAutoMapperConfiguration config in configs)
-            {
-                config.CreateMaps(cfg);
-            }
-
+            
             //获取已注册到IoC的所有Profile
-            IMapTuple[] tuples = provider.GetServices<IMapTuple>().ToArray();
+            IMapTuple[] tuples = provider.GetServices<IMapTuple>().OrderBy(m => m.Order).ToArray();
             foreach (IMapTuple mapTuple in tuples)
             {
                 mapTuple.CreateMap();
                 cfg.AddProfile(mapTuple as Profile);
+                logger.LogInformation($"初始化对象映射配对：{mapTuple.GetType()}");
             }
 
-            Mapper.Initialize(cfg);
-
-            IMapper mapper = provider.GetService<IMapper>();
+            var configuration = new MapperConfiguration(cfg);
+            IMapper mapper = new AutoMapperMapper(configuration);
             MapperExtensions.SetMapper(mapper);
-
+            logger.LogInformation($"初始化对象映射对象到 MapperExtensions：{mapper.GetType()}，共包含 {configuration.GetMappers().Count()} 个映射配对");
+            
             IsEnabled = true;
         }
     }

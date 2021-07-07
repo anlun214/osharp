@@ -8,13 +8,16 @@
 // -----------------------------------------------------------------------
 
 using System;
+using System.Collections.Generic;
+using System.Linq;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 using OSharp.Core.Options;
 using OSharp.Core.Packs;
-using OSharp.Dependency;
+using OSharp.Entity.Internal;
 
 
 namespace OSharp.Entity
@@ -37,6 +40,17 @@ namespace OSharp.Entity
         protected abstract DatabaseType DatabaseType { get; }
 
         /// <summary>
+        /// 将模块服务添加到依赖注入服务容器中
+        /// </summary>
+        /// <param name="services">依赖注入服务容器</param>
+        /// <returns></returns>
+        public override IServiceCollection AddServices(IServiceCollection services)
+        {
+            services.AddOsharpDbContext<TDbContext>();
+            return services;
+        }
+
+        /// <summary>
         /// 应用模块服务
         /// </summary>
         /// <param name="provider">服务提供者</param>
@@ -49,17 +63,28 @@ namespace OSharp.Entity
                 return;
             }
 
+            ILogger logger = provider.GetLogger(GetType());
             using (IServiceScope scope = provider.CreateScope())
             {
                 TDbContext context = CreateDbContext(scope.ServiceProvider);
                 if (context != null && contextOptions.AutoMigrationEnabled)
                 {
-                    context.CheckAndMigration();
+                    context.CheckAndMigration(logger);
                     DbContextModelCache modelCache = scope.ServiceProvider.GetService<DbContextModelCache>();
                     modelCache?.Set(context.GetType(), context.Model);
                 }
             }
 
+            //初始化种子数据，只初始化当前上下文的种子数据
+            IEntityManager entityManager = provider.GetService<IEntityManager>();
+            Type[] entityTypes = entityManager.GetEntityRegisters(typeof(TDbContext)).Select(m => m.EntityType).Distinct().ToArray();
+            IEnumerable<ISeedDataInitializer> seedDataInitializers = provider.GetServices<ISeedDataInitializer>()
+                .Where(m => entityTypes.Contains(m.EntityType)).OrderBy(m => m.Order);
+            foreach (ISeedDataInitializer initializer in seedDataInitializers)
+            {
+                initializer.Initialize();
+            }
+            
             IsEnabled = true;
         }
 

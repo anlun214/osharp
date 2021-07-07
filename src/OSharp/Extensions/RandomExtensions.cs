@@ -69,7 +69,11 @@ namespace OSharp.Extensions
         /// <returns>元素数组中的某个随机项</returns>
         public static T NextItem<T>(this Random random, T[] items)
         {
-            return items[random.Next(0, items.Length)];
+            if (items == null || items.Length == 0)
+            {
+                return default(T);
+            }
+            return items[random.Next(items.Length)];
         }
 
         /// <summary>
@@ -211,8 +215,8 @@ namespace OSharp.Extensions
                 section = random.NextItem(sections);
             }
 
-            string thrid = (random.Next(1, 9100) + 10000).ToString().Substring(1);
-            return section + thrid;
+            string third = (random.Next(1, 9100) + 10000).ToString().Substring(1);
+            return section + third;
         }
 
         /// <summary>

@@ -19,7 +19,7 @@ using System.Web;
 using Newtonsoft.Json;
 
 using OSharp.Collections;
-using OSharp.Secutiry;
+using OSharp.Security;
 
 
 namespace OSharp.Extensions
@@ -62,6 +62,19 @@ namespace OSharp.Extensions
                 return null;
             }
             return Regex.Match(value, pattern).Value;
+        }
+
+        /// <summary>
+        /// 在指定的输入字符串中匹配并替换符合指定正则表达式的子串
+        /// </summary>
+        public static string ReplaceRegex(this string value, string pattern, string replacement)
+        {
+            if (value == null)
+            {
+                return null;
+            }
+
+            return Regex.Replace(value, pattern, replacement);
         }
 
         /// <summary>
@@ -445,12 +458,12 @@ namespace OSharp.Extensions
             {
                 return false;
             }
-            byte[] filedata = File.ReadAllBytes(filename);
-            if (filedata.Length == 0)
+            byte[] fileData = File.ReadAllBytes(filename);
+            if (fileData.Length == 0)
             {
                 return false;
             }
-            ushort code = BitConverter.ToUInt16(filedata, 0);
+            ushort code = BitConverter.ToUInt16(fileData, 0);
             switch (code)
             {
                 case 0x4D42: //bmp
@@ -738,11 +751,8 @@ namespace OSharp.Extensions
         /// <returns>byte[]数组</returns>
         public static byte[] ToHexBytes(this string hexString)
         {
+            hexString = hexString ?? "";
             hexString = hexString.Replace(" ", "");
-            if (hexString.Length % 2 != 0)
-            {
-                hexString = hexString ?? "";
-            }
             byte[] bytes = new byte[hexString.Length / 2];
             for (int i = 0; i < bytes.Length; i++)
             {
@@ -780,11 +790,12 @@ namespace OSharp.Extensions
         }
 
         /// <summary>
-        /// 将驼峰字符串按单词拆分并转换成小写，再以-分隔
+        /// 将驼峰字符串按单词拆分并转换成小写，再以特定字符串分隔
         /// </summary>
         /// <param name="str">待转换的字符串</param>
+        /// <param name="splitStr">分隔符字符</param>
         /// <returns></returns>
-        public static string UpperToLowerAndSplit(this string str)
+        public static string UpperToLowerAndSplit(this string str, string splitStr = "-")
         {
             if (string.IsNullOrEmpty(str))
             {
@@ -793,7 +804,7 @@ namespace OSharp.Extensions
             List<string> words = new List<string>();
             while (str.Length > 0)
             {
-                char c = str.FirstOrDefault(m => char.IsUpper(m));
+                char c = str.FirstOrDefault(char.IsUpper);
                 if (c == default(char))
                 {
                     words.Add(str);
@@ -813,7 +824,7 @@ namespace OSharp.Extensions
                 }
                 str = char.ToLower(str[0]) + str.Substring(1, str.Length - 1);
             }
-            return words.ExpandAndToString("-");
+            return words.ExpandAndToString(splitStr);
         }
 
         /// <summary>

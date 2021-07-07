@@ -9,13 +9,14 @@
 
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using System.Reflection;
 
 using Microsoft.AspNetCore.Mvc;
 
-using OSharp.Core.Functions;
-using OSharp.Core.Modules;
+using OSharp.Authorization.Functions;
+using OSharp.Authorization.Modules;
 using OSharp.Exceptions;
 using OSharp.Reflection;
 
@@ -71,14 +72,26 @@ namespace OSharp.AspNetCore.Mvc
                 }
             }
             //获取区域模块
-            string area = type.GetAttribute<AreaAttribute>()?.RouteValue ?? "Site";
-            string name = area == "Site" ? "站点" : area == "Admin" ? "管理" : null;
+            string area, name;
+            AreaInfoAttribute areaInfo = type.GetAttribute<AreaInfoAttribute>();
+            if (areaInfo != null)
+            {
+                area = areaInfo.RouteValue;
+                name = areaInfo.Display ?? area;
+            }
+            else
+            {
+                AreaAttribute areaAttr = type.GetAttribute<AreaAttribute>();
+                area = areaAttr?.RouteValue ?? "Site";
+                DisplayNameAttribute display = type.GetAttribute<DisplayNameAttribute>();
+                name = display?.DisplayName ?? area;
+            }
             info = new ModuleInfo()
             {
-                Name = name ?? area,
+                Name = name,
                 Code = area,
                 Position = "Root",
-                PositionName = area == "Site" ? "站点" : area == "Admin" ? "管理" : null
+                PositionName = name
             };
             if (!existPaths.Contains($"{info.Position}.{info.Code}"))
             {
@@ -119,12 +132,12 @@ namespace OSharp.AspNetCore.Mvc
             DependOnFunctionAttribute[] dependOnAttrs = method.GetAttributes<DependOnFunctionAttribute>();
             foreach (DependOnFunctionAttribute dependOnAttr in dependOnAttrs)
             {
-                string darea = dependOnAttr.Area == null ? area : dependOnAttr.Area == string.Empty ? null : dependOnAttr.Area;
-                string dcontroller = dependOnAttr.Controller ?? controller;
-                IFunction function = FunctionHandler.GetFunction(darea, dcontroller, dependOnAttr.Action);
+                string dependArea = dependOnAttr.Area == null ? area : dependOnAttr.Area == string.Empty ? null : dependOnAttr.Area;
+                string dependController = dependOnAttr.Controller?.Replace("Controller", string.Empty) ?? controller;
+                IFunction function = FunctionHandler.GetFunction(dependArea, dependController, dependOnAttr.Action);
                 if (function == null)
                 {
-                    throw new OsharpException($"功能“{area}/{controller}/{method.Name}”的依赖功能“{darea}/{dcontroller}/{dependOnAttr.Action}”无法找到");
+                    throw new OsharpException($"功能“{area}/{controller}/{method.Name}”的依赖功能“{dependArea}/{dependController}/{dependOnAttr.Action}”无法找到");
                 }
                 dependOnFunctions.Add(function);
             }
